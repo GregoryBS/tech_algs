@@ -20,9 +20,13 @@
 using namespace std;
 
 template <class T>
-int find_k_stat(T *arr, int begin, int end, int k, bool (*cmp)(T, T));
+bool cmp_default(const T &left, const T &right);
 
-bool cmp(int left, int right);
+bool cmp(const int &left, const int &right);
+
+template <class T>
+int find_k_stat(T *arr, int begin, int end, int k, \
+                bool (*cmp)(const T&, const T&) = cmp_default);
 
 int main(void)
 {
@@ -42,13 +46,19 @@ int main(void)
     return 0;
 }
 
-bool cmp(int left, int right)
+template <class T>
+bool cmp_default(const T &left, const T &right)
+{
+    return left > right;
+}
+
+bool cmp(const int &left, const int &right)
 {
     return left > right;
 }
 
 template <class T>
-int partition(T *arr, int begin, int end, bool (*cmp)(T, T))
+int partition(T *arr, int begin, int end, bool (*cmp)(const T&, const T&))
 {
     assert(arr && begin >= 0 && begin <= end);
     if (begin == end)
@@ -71,7 +81,8 @@ int partition(T *arr, int begin, int end, bool (*cmp)(T, T))
 }
 
 template <class T>
-int find_k_stat(T *arr, int begin, int end, int k, bool (*cmp)(T, T))
+int find_k_stat(T *arr, int begin, int end, int k, \
+                bool (*cmp)(const T&, const T&))
 {
     assert(arr && begin >= 0 && k >= 0 && begin <= end && k <= end);
     int pivot = 0;

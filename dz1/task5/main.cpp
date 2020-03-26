@@ -17,6 +17,7 @@ typedef struct segment_t
 {
     int begin;
     int end;
+    segment_t(): begin(0), end(0) {}
 } segments;
 
 int col_seg_len_sum(segments *arr, const int size);

@@ -29,11 +29,13 @@ typedef struct times_t
 {
     int arrive;
     int departure;
+    times_t(): arrive(0), departure(0) {}
 } times;
 
-bool cmp_default(int left, int right);
+template <class T>
+bool cmp_default(const T &left, const T &right);
 
-bool cmp_times(times left, times right);
+bool cmp_times(const times &left, const times &right);
 
 int get_dead_end_number(times *arr, int size);
 
@@ -48,7 +50,7 @@ public:
     bool empty(void);
     void clear(void);
     int size(void);
-    void push_back(T element);
+    void push_back(const T &element);
     T pop_back(void);
 
 private:
@@ -61,8 +63,9 @@ template <class T>
 class Heap
 {
 public:
-    Heap(bool (*cmp)(T, T) = cmp_default);
-    explicit Heap(const Array<T> &arr, bool (*cmp)(T, T) = cmp_default);
+    Heap(bool (*cmp)(const T&, const T&) = cmp_default);
+    explicit Heap(const Array<T> &arr, bool (*cmp)(const T&, const T&) = \
+                  cmp_default);
     ~Heap();
 
     T &operator[] (int index);
@@ -73,7 +76,7 @@ public:
 
 private:
     Array<T> array;
-    bool (*cmp_func)(T, T); // function for comparing elements
+    bool (*cmp_func)(const T&, const T&); // function for comparing elements
 
     void build(void);
     void down(int index);
@@ -97,12 +100,13 @@ int main(void)
     return 0;
 }
 
-bool cmp_default(int left, int right)
+template <class T>
+bool cmp_default(const T &left, const T &right)
 {
-    return left > right;
+    return left < right;
 }
 
-bool cmp_times(times left, times right)
+bool cmp_times(const times &left, const times &right)
 {
     return left.departure < right.departure;
 }
@@ -172,7 +176,7 @@ int Array<T>::size(void)
 }
 
 template <class T>
-void Array<T>::push_back(T element)
+void Array<T>::push_back(const T &element)
 {
     if (this->empty())
     {
@@ -198,10 +202,10 @@ T Array<T>::pop_back(void)
 }
 
 template <class T>
-Heap<T>::Heap(bool (*cmp)(T, T)) : cmp_func(cmp) {}
+Heap<T>::Heap(bool (*cmp)(const T&, const T&)) : cmp_func(cmp){}
 
 template <class T>
-Heap<T>::Heap(const Array<T> &arr, bool (*cmp)(T, T))
+Heap<T>::Heap(const Array<T> &arr, bool (*cmp)(const T&, const T&))
 {
     cmp_func = cmp;
     for (int i = 0; i < arr.size(); i++)
