@@ -63,16 +63,16 @@ template <class T>
 class Heap
 {
 public:
-    Heap(bool (*cmp)(const T&, const T&) = cmp_default);
-    explicit Heap(const Array<T> &arr, bool (*cmp)(const T&, const T&) = \
+    explicit Heap(bool (*cmp)(const T&, const T&) = cmp_default);
+    Heap(const Array<T> &arr, bool (*cmp)(const T&, const T&) = \
                   cmp_default);
     ~Heap();
 
     T &operator[] (int index);
 
-    void insert(T element);
+    void insert(const T &element);
     T get_max(void);
-    T read_max(void);
+    const T &read_max(void);
 
 private:
     Array<T> array;
@@ -221,7 +221,7 @@ Heap<T>::~Heap()
 }
 
 template <class T>
-void Heap<T>::insert(T element)
+void Heap<T>::insert(const T &element)
 {
     array.push_back(element);
     up(array.size() - 1);
@@ -242,7 +242,7 @@ T Heap<T>::get_max(void)
 }
 
 template <class T>
-T Heap<T>::read_max(void)
+const T &Heap<T>::read_max(void)
 {
     assert(!array.empty());
     return array[0];
