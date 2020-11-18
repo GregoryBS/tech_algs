@@ -8,8 +8,8 @@
  */
 
 #include <iostream>
-#include <cstring>
 #include <cassert>
+#include <algorithm>
 
 using namespace std;
 
@@ -72,10 +72,10 @@ void merge(T *arr1, T *arr2, const int size, bool (*cmp)(const T&, const T&) = c
         k++;
     }
     if (j == s2)
-        memcpy(buf + k, arr1 + i, (s1 - i) * sizeof(T));
+	copy(arr1 + i, arr1 + s1, buf + k);
     else
-        memcpy(buf + k, arr2 + j, (s2 - j) * sizeof(T));
-    memcpy(arr1, buf, size * sizeof(T));
+	copy(arr2 + j, arr2 + s2, buf + k);
+    copy(buf, buf + size, arr1);
     delete[] buf;
 }
 
