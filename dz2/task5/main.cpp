@@ -1,8 +1,10 @@
 #include "Huffman.h"
 
 #include <cassert>
-#include <vector>
 #include <queue>
+#include <iostream>
+#include <vector>
+#include <stdio.h>
 
 using namespace std;
 
@@ -26,178 +28,9 @@ struct Node
 class Coder
 {
 public:
-    explicit Coder(vector<Node*> &v) : bit_count(0)
-    {
-        assert(!v.empty());
-        while (v.size() > 2)
-        {
-            int min1 = v[0]->frequence, min2 = v[1]->frequence;
-            int imin1 = 0, imin2 = 1;
-            if (min1 > min2)
-            {
-                swap(min1, min2);
-                swap(imin1, imin2);
-            }
-            for (size_t i = 2; i < v.size(); i++)
-            {
-                if (v[i]->frequence < min1)
-                {
-                    min2 = min1;
-                    imin2 = imin1;
-                    min1 = v[i]->frequence;
-                    imin1 = i;
-                }
-                else if (v[i]->frequence < min2)
-                {
-                    min2 = v[i]->frequence;
-                    imin2 = i;
-                }
-            }
-            Node *parent = new Node;
-            parent->left = v[imin1];
-            parent->right = v[imin2];
-            parent->frequence = min1 + min2;
-            v[imin1]->parent_l = parent;
-            v[imin2]->parent_r = parent;
-            v[imin1] = parent;
-            v.erase(v.begin() + imin2);
-        }
-        root = new Node;
-        root->left = v.front();
-        root->right = v.back();
-        v.front()->parent_l = root;
-        v.back()->parent_r = root;
-        update_freq();
-    }
+    Coder() : bit_count(0) {}
 
-    ~Coder()
-    {
-        in_wide([](const Node *node){ delete node; });
-    }
-
-    void encode(vector<byte> &text, vector<byte> &result)
-    {
-        bit_count = 0;
-        for (size_t i = 0; i < text.size(); i++)
-            encode_symbol(result, text[i]);
-
-        if (bit_count % 8)
-            result.push_back(8 - bit_count % 8);
-        else
-            result.push_back(0);
-    }
-
-    void decode(vector<byte> &text, vector<byte> &result)
-    {
-        int waste = text.back();
-        text.pop_back();
-        bit_count = text.size() * 8;
-        while (bit_count > waste)
-            read_symbol(text, result);
-    }
-
-    void encode_tree(Node *node, vector<byte> &buf)
-    {
-        if (!node)
-            return;
-
-        if (!node->left && !node->right)
-        {
-            write_byte(buf, node->symbol);
-            write_byte(buf, node->frequence);
-        }
-        else
-        {
-            encode_tree(node->left, buf);
-            encode_tree(node->right, buf);
-        }
-    }
-
-    Node* get_root(void)
-    {
-        return root;
-    }
-
-private:
-    Node *root;
-    int bit_count;
-
-    void in_wide(void (*handler)(const Node*))
-    {
-        if (!root)
-            return;
-
-        Node *node = nullptr;
-        queue<Node*> q;
-        q.push(root);
-        while (!q.empty())
-        {
-            node = q.front();
-            q.pop();
-            if (node->left)
-                q.push(node->left);
-            if (node->right)
-                q.push(node->right);
-            handler(node);
-        }
-    }
-
-    void update_freq(void)
-    {
-        if (!root)
-            return;
-
-        Node *node = nullptr;
-        queue<Node*> q;
-        q.push(root);
-        int tmp = 1, next = 0;
-        int c1 = 0, c2 = 0;
-        while (!q.empty())
-        {
-            next = 0;
-            for (int i = 0; i < tmp; i++)
-            {
-                node = q.front();
-                q.pop();
-                if (node->left)
-                {
-                    q.push(node->left);
-                    next++;
-                }
-                if (node->right)
-                {
-                    q.push(node->right);
-                    next++;
-                }
-            }
-            tmp = next;
-            c1++;
-        }
-        q.push(root);
-        tmp = 1;
-        while (!q.empty())
-        {
-            next = 0;
-            for (int i = 0; i < tmp; i++)
-            {
-                node = q.front();
-                node->frequence = 1 << (c1 - c2 - 1);
-                q.pop();
-                if (node->left)
-                {
-                    q.push(node->left);
-                    next++;
-                }
-                if (node->right)
-                {
-                    q.push(node->right);
-                    next++;
-                }
-            }
-            tmp = next;
-            c2++;
-        }
-    }
+    ~Coder() = default;
 
     void read_bit(vector<byte> &text, byte &bit)
     {
@@ -209,10 +42,9 @@ private:
         bit_count--;
     }
 
-    void read_symbol(vector<byte> &text, vector<byte> &buf)
+    void read_symbol(Node *node, vector<byte> &text, vector<byte> &buf)
     {
         byte bit = 0;
-        Node *node = root;
         while (node->left || node->right)
         {
             read_bit(text, bit);
@@ -244,6 +76,112 @@ private:
             buf.push_back(symbol << (8 - bit_count % 8));
         }
         bit_count += 8;
+    }
+
+    int bits(void)
+    {
+        return bit_count;
+    }
+
+    void set_bits(int value)
+    {
+        bit_count = value;
+    }
+
+private:
+    int bit_count;
+};
+
+class Huffman
+{
+public:
+    Huffman(vector<Node*> &alphabet, Coder *coder) : coder(coder)
+    {
+        create_tree(alphabet);
+    }
+
+    ~Huffman()
+    {
+        if (!root)
+            return;
+
+        Node *node = nullptr;
+        queue<Node*> q;
+        q.push(root);
+        while (!q.empty())
+        {
+            node = q.front();
+            q.pop();
+            if (node->left)
+                q.push(node->left);
+            if (node->right)
+                q.push(node->right);
+            delete node;
+        }
+    }
+
+    void encode(vector<byte> &text, vector<byte> &result)
+    {
+        coder->set_bits(0);
+        for (size_t i = 0; i < text.size(); i++)
+            encode_symbol(result, text[i]);
+
+        if (coder->bits() % 8)
+            result.push_back(8 - coder->bits() % 8);
+        else
+            result.push_back(0);
+    }
+
+    void decode(vector<byte> &text, vector<byte> &result)
+    {
+        int waste = text.back();
+        text.pop_back();
+        coder->set_bits(text.size() * 8);
+        while (coder->bits() > waste)
+            coder->read_symbol(root, text, result);
+    }
+
+private:
+    Node *root;
+    Coder *coder;
+
+    void create_tree(vector<Node*> &alphabet)
+    {
+        assert(!alphabet.empty());
+        while (alphabet.size() > 1)
+        {
+            int min1 = alphabet[0]->frequence, min2 = alphabet[1]->frequence;
+            int imin1 = 0, imin2 = 1;
+            if (min1 > min2)
+            {
+                swap(min1, min2);
+                swap(imin1, imin2);
+            }
+            for (size_t i = 2; i < alphabet.size(); i++)
+            {
+                if (alphabet[i]->frequence < min1)
+                {
+                    min2 = min1;
+                    imin2 = imin1;
+                    min1 = alphabet[i]->frequence;
+                    imin1 = i;
+                }
+                else if (alphabet[i]->frequence < min2)
+                {
+                    min2 = alphabet[i]->frequence;
+                    imin2 = i;
+                }
+            }
+            Node *parent = new Node;
+            parent->left = alphabet[imin1];
+            parent->right = alphabet[imin2];
+            parent->frequence = min1 + min2;
+            alphabet[imin1]->parent_l = parent;
+            alphabet[imin2]->parent_r = parent;
+            alphabet[imin1] = parent;
+            alphabet.erase(alphabet.begin() + imin2);
+        }
+        root = alphabet.front();
     }
 
     bool find_code(Node *node, vector<byte> &code, byte symbol)
@@ -287,7 +225,7 @@ private:
         find_code(root, code, symbol);
         while (!code.empty())
         {
-            write_bit(buf, code.back());
+            coder->write_bit(buf, code.back());
             code.pop_back();
         }
     }
@@ -297,6 +235,29 @@ static void write(IOutputStream &output, const vector<byte> &text)
 {
     for (size_t i = 0; i < text.size(); i++)
         output.Write(text[i]);
+}
+
+void num_to_byte(int num, vector<byte> &buf)
+{
+    buf.clear();
+    for (int i = 0; i < sizeof(num); i++)
+    {
+        buf.insert(buf.begin(), num & 255);
+        num >>= 8;
+    }
+}
+
+void encode_alphabet(Coder *coder, vector<Node*> &alphabet, vector<byte> &buf)
+{
+    for (int i = 0; i < alphabet.size(); i++)
+    {
+        coder->write_byte(buf, alphabet[i]->symbol);
+        vector<byte> freq;
+        num_to_byte(alphabet[i]->frequence, freq);
+        for (int i = 0; i < freq.size(); i++)
+            coder->write_byte(buf, freq[i]);
+
+    }
 }
 
 void Encode(IInputStream &original, IOutputStream &compressed)
@@ -317,12 +278,15 @@ void Encode(IInputStream &original, IOutputStream &compressed)
         text.push_back(symbol);
     }
 
+    Coder *coder = new Coder;
     vector<byte> archive;
     archive.push_back(alphabet.size());
-    Coder coder(alphabet);
-    coder.encode_tree(coder.get_root(), archive);
-    coder.encode(text, archive);
+    encode_alphabet(coder, alphabet, archive);
+    Huffman *tree = new Huffman(alphabet, coder);
+    tree->encode(text, archive);
     write(compressed, archive);
+    delete tree;
+    delete coder;
 }
 
 void Decode(IInputStream &compressed, IOutputStream &original)
@@ -330,21 +294,68 @@ void Decode(IInputStream &compressed, IOutputStream &original)
     byte symbol;
     compressed.Read(symbol);
     int size = symbol;
+    if (!size)
+        size += 256;
     vector<Node*> alphabet(size);
     for (int i = 0; i < size; i++)
     {
         compressed.Read(symbol);
         alphabet[i] = new Node(symbol);
-        compressed.Read(symbol);
-        alphabet[i]->frequence = symbol;
+        int frequence = 0;
+        for (int i = 0; i < sizeof(frequence); i++)
+        {
+            compressed.Read(symbol);
+            frequence *= 256;
+            frequence += symbol;
+        }
+        alphabet[i]->frequence = frequence;
     }
 
     vector<byte> archive;
     while(compressed.Read(symbol))
         archive.push_back(symbol);
 
-    Coder coder(alphabet);
+    Coder *coder = new Coder;
+    Huffman *tree = new Huffman(alphabet, coder);
     vector<byte> text;
-    coder.decode(archive, text);
+    tree->decode(archive, text);
     write(original, text);
+    delete tree;
+    delete coder;
+}
+
+int main(int argc, char **argv)
+{
+	if (argc != 3)
+	{
+		cout << "Error parameters.\nUsage: main <input> <output>\n";
+		return 0;
+	}
+	
+    IInputStream input, encode;
+    IOutputStream output, decode;
+    byte sym;
+    FILE *f1 = fopen(argv[1], "rb"), *f2 = fopen(argv[2], "wb");
+	if (f1 && f2)
+	{
+		while (!feof(f1))
+            if (fread(&sym, sizeof(byte), 1, f1) == 1)
+                input.buf.push_back(sym);
+		fclose(f1);
+
+		Encode(input, output);
+        cout << "Encoded\n";
+		encode.buf = output.buf;
+		Decode(encode, decode);
+        cout << "Decoded\n";
+
+		for (int i = 0; i < decode.buf.size(); i++)
+			fwrite(&(decode.buf[i]), sizeof(byte), 1, f2);
+		fclose(f2);
+	}
+	else if (f1)
+		fclose(f1);
+	else if (f2)
+		fclose(f2);
+    return 0;
 }

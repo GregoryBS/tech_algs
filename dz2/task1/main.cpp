@@ -22,6 +22,7 @@
 #define FIND '?'
 #define ADD '+'
 #define REMOVE '-'
+#define SIZE 8
 #define ALPHA 0.75
 #define A 73
 #define EMPTY 0
@@ -29,6 +30,32 @@
 #define DEL -1
 
 using namespace std;
+
+int hash_gorner(const string& value, size_t m)
+{
+    int hash = 0;
+    for (size_t i = 0; i < value.size(); i++)
+        hash = hash * A + value[i];
+    return hash % m;
+}
+
+template <class T>
+struct HashFunc
+{
+    size_t operator() (const T& key, size_t m)
+    {
+        return key % m;
+    }
+};
+
+template <>
+struct HashFunc<string>
+{
+    size_t operator() (const string& key, size_t m)
+    {
+        return hash_gorner(key, m);
+    }
+};
 
 template <class T>
 struct Node
@@ -38,36 +65,28 @@ struct Node
     Node() : flag(EMPTY) {}
 };
 
-template <class T>
+template <class T, class Hash = HashFunc<T>>
 class HashTable
 {
 public:
-    HashTable(int size = 8, int (*hasher)(const T&,size_t) = [](){return 0;});
+    explicit HashTable(Hash h = Hash());
     ~HashTable();
 
-    bool find(const T &key);
-    bool add(const T &key);
-    bool remove(const T &key);
+    bool find(const T& key);
+    bool add(const T& key);
+    bool remove(const T& key);
 
 private:
     vector<Node<T>> table;
-    int (*hash_func)(const T&, size_t);
+    Hash hasher;
     size_t capacity;
 
-    void resize();
+    void resize(void);
 };
-
-int hash_gorner(const string &value, size_t m)
-{
-    int hash = 0;
-    for (size_t i = 0; i < value.size(); i++)
-        hash = hash * A + value[i];
-    return hash % m;
-}
 
 int main(void)
 {
-    HashTable<string> set(8, hash_gorner);
+    HashTable<string> set;
     char operation = 0;
     string word = "";
     bool result = false;
@@ -88,27 +107,28 @@ int main(void)
     return 0;
 }
 
-template <class T>
-HashTable<T>::HashTable(int size, int (*hasher)(const T&, size_t)) :
-    table(size), hash_func(hasher), capacity(0) {}
+template <class T, class Hash>
+HashTable<T, Hash>::HashTable(Hash h) : table(0), hasher(h), capacity(0) {}
 
-template <class T>
-HashTable<T>::~HashTable()
+template <class T, class Hash>
+HashTable<T, Hash>::~HashTable()
 {
     table.clear();
 }
 
-template <class T>
-void HashTable<T>::resize()
+template <class T, class Hash>
+void HashTable<T, Hash>::resize(void)
 {
-    size_t new_size = table.size() * 2;
+    size_t new_size = SIZE;
+	if (table.size() >= new_size)
+		new_size = table.size() * 2;
     vector<Node<T>> buf = move(table);
     table.resize(new_size);
     for (size_t i = 0; i < buf.size(); i++)
     {
         if (buf[i].flag == FILL)
         {
-            int hi = hash_func(buf[i].key, new_size);
+            int hi = hasher(buf[i].key, new_size);
             int prob_count = 0;
             while (table[hi].flag != EMPTY)
             {
@@ -120,10 +140,10 @@ void HashTable<T>::resize()
     }
 }
 
-template <class T>
-bool HashTable<T>::find(const T &key)
+template <class T, class Hash>
+bool HashTable<T, Hash>::find(const T& key)
 {
-    int hi = hash_func(key, table.size()), prob_count = 0;
+    int hi = hasher(key, table.size()), prob_count = 0;
     bool result = false;
     while (prob_count < table.size() && !result)
     {
@@ -140,13 +160,13 @@ bool HashTable<T>::find(const T &key)
     return result;
 }
 
-template <class T>
-bool HashTable<T>::add(const T &key)
+template <class T, class Hash>
+bool HashTable<T, Hash>::add(const T& key)
 {
     if (ALPHA * table.size() <= capacity)
         resize();
 
-    int hi = hash_func(key, table.size()), prob_count = 0, ins = -1;
+    int hi = hasher(key, table.size()), prob_count = 0, ins = -1;
     bool result = true;
     while (prob_count < table.size() && result)
     {
@@ -175,10 +195,10 @@ bool HashTable<T>::add(const T &key)
     return result;
 }
 
-template <class T>
-bool HashTable<T>::remove(const T &key)
+template <class T, class Hash>
+bool HashTable<T, Hash>::remove(const T& key)
 {
-    int hi = hash_func(key, table.size()), prob_count = 0;
+    int hi = hasher(key, table.size()), prob_count = 0;
     bool result = false;
     while (prob_count < table.size() && !result)
     {
